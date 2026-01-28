@@ -1,0 +1,7 @@
+{
+  "tasks": [
+    "add_task do dsa",
+    "add_task hello",
+    "add_task \"hello\""
+  ]
+}
