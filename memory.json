@@ -2,6 +2,13 @@
   "tasks": [
     "add_task do dsa",
     "add_task hello",
-    "add_task \"hello\""
+    "add_task \"hello\"",
+    "hello",
+    "python -u \"d:\\AstraAgent\\agent.py\"",
+    "something",
+    "python -u \"d:\\AstraAgent\\agent.py\"",
+    "hello",
+    "hello",
+    "edit my task"
   ]
 }
