@@ -1,9 +1,11 @@
-def add_task(task):
-    return f"Task Added: {task}"
-
-def calculator(expression):
+def calculator(expression: str) -> str:
     try:
-        return str(eval(expression))
-    except:
-        return "Invalid Expression"
+        result = eval(expression, {"__builtins__": {}})
+        return f"Result: {result}"
+    except Exception as e:
+        return f"Invalid Expression {str(e)}"
+
+TOOLS = {
+    'calculator': calculator
+}
     
