@@ -1,81 +1,88 @@
-import json
 from llm import call_llm
-from memory import load_memory, save_memory
-from tools import TOOLS
 
-SYSTEM_PROMPT = """
-You are AstraAgent, an AI assistant.
+# ================= PROMPTS =================
 
-Decide whether a tool is required.
-If a calculation is needed, use the calculator tool.
+PLANNER_PROMPT = """
+You are the Planner.
 
-Respond ONLY in valid JSON.
-
-FORMAT:
-{
-  "action": "tool" | "answer",
-  "tool_name": "<tool name if any>",
-  "input": "<tool input if any>",
-  "output": "<final answer if no tool>"
-}
+Given a user request, break it into clear and minimal steps.
+Do NOT solve the task.
+Return steps as a numbered list.
 """
 
-def agent(user_input):
-    # 🛡️ Input validation
-    if len(user_input.strip()) < 2:
-        return "Can you please clarify?"
+EXECUTOR_PROMPT = """
+You are the Executor.
 
-    memory = load_memory()
+Follow the given plan and perform the task.
+Explain clearly and step by step.
+"""
 
+CRITIC_PROMPT = """
+You are the Critic.
+
+Review the executor's answer.
+Fix mistakes if any.
+Improve clarity.
+Return ONLY the final improved answer.
+"""
+
+# ================= FUNCTIONS =================
+
+def planner(task: str) -> str:
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        *memory,
-        {"role": "user", "content": user_input}
+        {"role": "system", "content": PLANNER_PROMPT},
+        {"role": "user", "content": task}
     ]
+    return call_llm(messages)
 
-    try:
-        decision_raw = call_llm(messages)
-    except Exception:
-        return "LLM error. Please try again."
 
-    # 🛡️ JSON safety
-    try:
-        decision = json.loads(decision_raw)
-    except Exception:
-        return "I didn't understand that. Can you rephrase?"
+def executor(plan: str) -> str:
+    messages = [
+        {"role": "system", "content": EXECUTOR_PROMPT},
+        {"role": "user", "content": plan}
+    ]
+    return call_llm(messages)
 
-    if "action" not in decision:
-        return "I’m not sure how to respond to that."
 
-    # 🛠️ Tool path
-    if decision["action"] == "tool":
-        tool_name = decision.get("tool_name")
-        tool_input = decision.get("input")
+def critic(original_task: str, execution_result: str) -> str:
+    messages = [
+        {"role": "system", "content": CRITIC_PROMPT},
+        {
+            "role": "user",
+            "content": f"Task:\n{original_task}\n\nAnswer:\n{execution_result}"
+        }
+    ]
+    return call_llm(messages)
 
-        if tool_name not in TOOLS:
-            return f"Unknown tool: {tool_name}"
 
-        result = TOOLS[tool_name](tool_input)
+# ================= AGENT LOOP =================
 
-        memory.append({"role": "user", "content": user_input})
-        memory.append({"role": "assistant", "content": result})
-        save_memory(memory)
+def agent(user_input: str) -> str:
+    if len(user_input.strip()) < 2:
+        return "Can you please clarify your question?"
 
-        return result
+    # 1️⃣ PLAN
+    plan = planner(user_input)
 
-    # 💬 Direct answer
-    output = decision.get("output", "Okay.")
-    memory.append({"role": "user", "content": user_input})
-    memory.append({"role": "assistant", "content": output})
-    save_memory(memory)
+    # 2️⃣ EXECUTE
+    execution = executor(plan)
 
-    return output
+    # 3️⃣ CRITIC
+    final_answer = critic(user_input, execution)
 
+    return final_answer
+
+
+# ================= MAIN =================
 
 if __name__ == "__main__":
-    print("AstraAgent v0.2 (tools enabled)")
+    print("AstraAgent v0.3 (Planner → Executor → Critic)")
+    print("Type 'exit' to quit\n")
+
     while True:
         user_input = input("You: ")
         if user_input.lower() == "exit":
             break
-        print("Agent:", agent(user_input))
+
+        response = agent(user_input)
+        print("Agent:", response)
