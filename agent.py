@@ -1,5 +1,5 @@
 from llm import call_llm
-
+from memory import add_to_memory, get_memory
 # ================= PROMPTS =================
 
 PLANNER_PROMPT = """
@@ -31,14 +31,15 @@ Return ONLY the final improved answer.
 def planner(task: str) -> str:
     messages = [
         {"role": "system", "content": PLANNER_PROMPT},
+        *get_memory(),
         {"role": "user", "content": task}
     ]
     return call_llm(messages)
 
-
 def executor(plan: str) -> str:
     messages = [
         {"role": "system", "content": EXECUTOR_PROMPT},
+        *get_memory(),
         {"role": "user", "content": plan}
     ]
     return call_llm(messages)
@@ -47,9 +48,13 @@ def executor(plan: str) -> str:
 def critic(original_task: str, execution_result: str) -> str:
     messages = [
         {"role": "system", "content": CRITIC_PROMPT},
+        *get_memory(),
         {
             "role": "user",
-            "content": f"Task:\n{original_task}\n\nAnswer:\n{execution_result}"
+            "content": (
+                f"User task:\n{original_task}\n\n"
+                f"Executor answer:\n{execution_result}"
+            )
         }
     ]
     return call_llm(messages)
@@ -64,12 +69,15 @@ def agent(user_input: str) -> str:
     # 1️⃣ PLAN
     plan = planner(user_input)
 
+    add_to_memory("user", user_input)
+
     # 2️⃣ EXECUTE
     execution = executor(plan)
 
     # 3️⃣ CRITIC
     final_answer = critic(user_input, execution)
 
+    add_to_memory("assistant", final_answer)
     return final_answer
 
 
