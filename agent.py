@@ -1,19 +1,25 @@
 from llm import call_llm
 from memory import add_to_memory, get_memory
-from tools import calculator
+from tools import calculator, recall_memory
 
 # ================= PROMPTS =================
 
 PLANNER_PROMPT = """
 You are the Planner.
 
-Decide whether the user request needs a TOOL or not.
+Decide which tools are required.
 
-If a tool is needed, respond EXACTLY in this format:
-TOOL: calculator
-INPUT: <math expression>
+Available tools:
+- calculator
+- recall_memory
 
-If no tool is needed, respond with:
+If tools are needed, respond EXACTLY in this format:
+TOOLS:
+- <tool_name>: <input>
+
+You may use multiple tools.
+
+If no tools are needed, respond with:
 NO_TOOL
 
 Do NOT solve the task.
@@ -24,19 +30,19 @@ EXECUTOR_PROMPT = """
 You are the Executor.
 
 Answer the user's request clearly and naturally.
-Use conversation context if needed.
+Use the conversation context if needed.
 """
 
 CRITIC_PROMPT = """
 You are a silent Critic.
 
-You NEVER mention planning, reviewing, or roles.
+You NEVER mention planning, tools, or reviewing.
 You NEVER explain your reasoning.
-You ONLY return the final improved answer for the user.
+You ONLY return the final improved answer.
 
 Fix mistakes if any.
 Improve clarity.
-If the answer is already good, return it as-is.
+If the answer is already correct, return it as-is.
 """
 
 # ================= CORE FUNCTIONS =================
@@ -74,21 +80,31 @@ def critic(original_task: str, execution_result: str) -> str:
     return call_llm(messages)
 
 
-# ================= TOOL ROUTER =================
+# ================= TOOL ROUTING =================
 
-def route_tool(plan: str):
-    if plan.startswith("TOOL:"):
-        lines = plan.splitlines()
-        if len(lines) < 2:
-            return None
+def route_tools(plan: str):
+    results = {}
 
-        tool_name = lines[0].replace("TOOL:", "").strip()
-        tool_input = lines[1].replace("INPUT:", "").strip()
+    if not plan.startswith("TOOLS:"):
+        return results
 
-        if tool_name == "calculator":
-            return calculator(tool_input)
+    lines = plan.splitlines()[1:]
 
-    return None
+    for line in lines:
+        if ":" not in line:
+            continue
+
+        tool, arg = line.split(":", 1)
+        tool = tool.strip("- ").strip()
+        arg = arg.strip()
+
+        if tool == "calculator":
+            results["calculator"] = calculator(arg)
+
+        elif tool == "recall_memory":
+            results["recall_memory"] = recall_memory(get_memory(), arg)
+
+    return results
 
 
 # ================= AGENT =================
@@ -97,34 +113,46 @@ def agent(user_input: str) -> str:
     if len(user_input.strip()) < 2:
         return "Can you please clarify your question?"
 
-    # 1️⃣ store user input FIRST
+    # 1️⃣ store user input
     add_to_memory("user", user_input)
 
     # 2️⃣ plan
     plan = planner(user_input)
 
-    # 3️⃣ tool check
-    tool_result = route_tool(plan)
-    if tool_result is not None:
-        add_to_memory("assistant", tool_result)
-        return tool_result
+    # 3️⃣ tool execution
+    tool_results = route_tools(plan)
 
-    # 4️⃣ execute
+    # 4️⃣ verify tool results
+    if tool_results:
+        for result in tool_results.values():
+            if result in ("ERROR", "NOT_FOUND"):
+                break
+        else:
+            # all tools succeeded
+            if len(tool_results) == 1:
+                final = list(tool_results.values())[0]
+            else:
+                final = ", ".join(
+                    f"{k}: {v}" for k, v in tool_results.items()
+                )
+
+            add_to_memory("assistant", final)
+            return final
+
+    # 5️⃣ fallback to executor
     execution = executor(user_input)
 
-    # 5️⃣ critic (silent)
+    # 6️⃣ critic refinement
     final_answer = critic(user_input, execution).strip()
 
-    # 6️⃣ store final answer
     add_to_memory("assistant", final_answer)
-
     return final_answer
 
 
 # ================= MAIN LOOP =================
 
 if __name__ == "__main__":
-    print("AstraAgent v0.4 (Planner → Tool → Executor → Critic)")
+    print("AstraAgent v0.5 (Multi-Tool Agent)")
     print("Type 'exit' to quit\n")
 
     while True:
