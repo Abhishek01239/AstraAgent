@@ -13,39 +13,38 @@ Available tools:
 - calculator
 - recall_memory
 
-If tools are needed, respond EXACTLY in this format:
+Respond EXACTLY in this format if tools are needed:
 TOOLS:
 - <tool_name>: <input>
 
-You may use multiple tools.
-
-If no tools are needed, respond with:
+If no tools are needed:
 NO_TOOL
 
 Do NOT solve the task.
-Do NOT explain.
 """
 
-EXECUTOR_PROMPT = """
+EXECUTOR_WITH_TOOLS_PROMPT = """
 You are the Executor.
 
-Answer the user's request clearly and naturally.
-Use the conversation context if needed.
+User request:
+{user_request}
+
+Tool results:
+{tool_results}
+
+Answer naturally using the tool results.
+Do NOT mention tools or reasoning.
 """
 
 CRITIC_PROMPT = """
 You are a silent Critic.
 
-You NEVER mention planning, tools, or reviewing.
-You NEVER explain your reasoning.
 You ONLY return the final improved answer.
-
-Fix mistakes if any.
+Fix errors if any.
 Improve clarity.
-If the answer is already correct, return it as-is.
 """
 
-# ================= CORE FUNCTIONS =================
+# ================= CORE =================
 
 def planner(task: str) -> str:
     messages = [
@@ -56,41 +55,13 @@ def planner(task: str) -> str:
     return call_llm(messages).strip()
 
 
-def executor(task: str) -> str:
-    messages = [
-        {"role": "system", "content": EXECUTOR_PROMPT},
-        *get_memory(),
-        {"role": "user", "content": task}
-    ]
-    return call_llm(messages)
-
-
-def critic(original_task: str, execution_result: str) -> str:
-    messages = [
-        {"role": "system", "content": CRITIC_PROMPT},
-        *get_memory(),
-        {
-            "role": "user",
-            "content": (
-                f"User request:\n{original_task}\n\n"
-                f"Executor answer:\n{execution_result}"
-            )
-        }
-    ]
-    return call_llm(messages)
-
-
-# ================= TOOL ROUTING =================
-
-def route_tools(plan: str):
+def run_tools(plan: str):
     results = {}
 
     if not plan.startswith("TOOLS:"):
         return results
 
-    lines = plan.splitlines()[1:]
-
-    for line in lines:
+    for line in plan.splitlines()[1:]:
         if ":" not in line:
             continue
 
@@ -102,57 +73,56 @@ def route_tools(plan: str):
             results["calculator"] = calculator(arg)
 
         elif tool == "recall_memory":
-            results["recall_memory"] = recall_memory(get_memory(), arg)
+            results["memory"] = recall_memory(get_memory(), arg)
 
     return results
+
+
+def executor_with_tools(task: str, tool_results: dict) -> str:
+    messages = [
+        {
+            "role": "system",
+            "content": EXECUTOR_WITH_TOOLS_PROMPT.format(
+                user_request=task,
+                tool_results=tool_results or "None"
+            )
+        },
+        *get_memory()
+    ]
+    return call_llm(messages)
+
+
+def critic(task: str, answer: str) -> str:
+    messages = [
+        {"role": "system", "content": CRITIC_PROMPT},
+        *get_memory(),
+        {
+            "role": "user",
+            "content": f"User request:\n{task}\n\nAnswer:\n{answer}"
+        }
+    ]
+    return call_llm(messages).strip()
 
 
 # ================= AGENT =================
 
 def agent(user_input: str) -> str:
-    if len(user_input.strip()) < 2:
-        return "Can you please clarify your question?"
-
-    # 1️⃣ store user input
     add_to_memory("user", user_input)
 
-    # 2️⃣ plan
     plan = planner(user_input)
+    tool_results = run_tools(plan)
 
-    # 3️⃣ tool execution
-    tool_results = route_tools(plan)
-
-    # 4️⃣ verify tool results
-    if tool_results:
-        for result in tool_results.values():
-            if result in ("ERROR", "NOT_FOUND"):
-                break
-        else:
-            # all tools succeeded
-            if len(tool_results) == 1:
-                final = list(tool_results.values())[0]
-            else:
-                final = ", ".join(
-                    f"{k}: {v}" for k, v in tool_results.items()
-                )
-
-            add_to_memory("assistant", final)
-            return final
-
-    # 5️⃣ fallback to executor
-    execution = executor(user_input)
-
-    # 6️⃣ critic refinement
-    final_answer = critic(user_input, execution).strip()
+    execution = executor_with_tools(user_input, tool_results)
+    final_answer = critic(user_input, execution)
 
     add_to_memory("assistant", final_answer)
     return final_answer
 
 
-# ================= MAIN LOOP =================
+# ================= MAIN =================
 
 if __name__ == "__main__":
-    print("AstraAgent v0.5 (Multi-Tool Agent)")
+    print("AstraAgent v0.6 — Tool-Aware Reasoning")
     print("Type 'exit' to quit\n")
 
     while True:
@@ -160,5 +130,4 @@ if __name__ == "__main__":
         if user_input.lower() == "exit":
             break
 
-        response = agent(user_input)
-        print("Agent:", response)
+        print("Agent:", agent(user_input))
