@@ -1,14 +1,26 @@
-{
-  "tasks": [
-    "add_task do dsa",
-    "add_task hello",
-    "add_task \"hello\"",
-    "hello",
-    "python -u \"d:\\AstraAgent\\agent.py\"",
-    "something",
-    "python -u \"d:\\AstraAgent\\agent.py\"",
-    "hello",
-    "hello",
-    "edit my task"
-  ]
-}
+[
+  {
+    "role": "user",
+    "content": "calculate 10*5 and tell me my name"
+  },
+  {
+    "role": "assistant",
+    "content": "The answer to 10*5 is 50. And your name is unknown to me."
+  },
+  {
+    "role": "user",
+    "content": "what is 34*23?"
+  },
+  {
+    "role": "assistant",
+    "content": "STATUS: RETRY\nFEEDBACK: The answer lacks the actual calculation process and verification. Provide the step-by-step calculation for the multiplication."
+  },
+  {
+    "role": "user",
+    "content": "234*23"
+  },
+  {
+    "role": "assistant",
+    "content": "STATUS: ACCEPT\nFINAL_ANSWER: 5382"
+  }
+]

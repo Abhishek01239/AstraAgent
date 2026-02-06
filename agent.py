@@ -37,11 +37,19 @@ Do NOT mention tools or reasoning.
 """
 
 CRITIC_PROMPT = """
-You are a silent Critic.
+You are a strict Critic.
 
-You ONLY return the final improved answer.
-Fix errors if any.
-Improve clarity.
+Evaluate the answer.
+
+If the answer is correct and complete, respond EXACTLY as:
+STATUS: ACCEPT
+FINAL_ANSWER: <final answer>
+
+If the answer has errors or is incomplete, respond EXACTLY as:
+STATUS: RETRY
+FEEDBACK: <what went wrong and how to fix it>
+
+Do not add anything else.
 """
 
 # ================= CORE =================
