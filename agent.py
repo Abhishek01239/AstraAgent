@@ -1,7 +1,7 @@
 from llm import call_llm
 from memory import add_to_memory, get_memory
 from tools import calculator, recall_memory
-
+from facts import remember_fact
 # ================= PROMPTS =================
 
 PLANNER_PROMPT = """
@@ -122,6 +122,10 @@ def agent(user_input: str) -> str:
 
     execution = executor_with_tools(user_input, tool_results)
     final_answer = critic(user_input, execution)
+
+    if "my name is" in user_input.lower():
+        name = user_input.split("is")[-1].strip()
+        remember_fact("user_name", name)
 
     add_to_memory("assistant", final_answer)
     return final_answer
