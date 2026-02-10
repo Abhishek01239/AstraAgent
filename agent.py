@@ -3,6 +3,7 @@ import re
 from llm import call_llm
 from memory import add_to_memory, get_memory
 from facts import remember_fact, get_fact
+from summarizer import summarize
 
 # ================= PROMPTS =================
 
@@ -83,6 +84,7 @@ def critic(task: str, answer: str) -> dict:
         feedback = result.split("FEEDBACK:", 1)[1].strip()
         return {"status": "retry", "feedback": feedback}
 
+    # fallback (safety)
     return {"status": "accept", "answer": answer}
 
 
@@ -91,19 +93,19 @@ def critic(task: str, answer: str) -> dict:
 def agent(user_input: str) -> str:
     text = user_input.strip().lower()
 
-    # 🧠 MEMORY WRITE (SAFE PARSING)
+    # 🧠 FACT WRITE — SAFE NAME PARSING
     match = re.match(r"^my name is\s+(.+)$", text)
     if match:
         name = match.group(1).strip().title()
         remember_fact(
-            "user_name",
-            name,
+            key="user_name",
+            value=name,
             confidence=0.95,
             source="user_statement"
         )
         return f"Got it 👍 I’ll remember your name is {name}."
 
-    # 🧠 MEMORY READ
+    # 🧠 FACT READ
     if "what is my name" in text:
         name = get_fact("user_name")
         if name:
@@ -112,6 +114,17 @@ def agent(user_input: str) -> str:
 
     # 🧠 NORMAL PIPELINE
     add_to_memory("user", user_input)
+
+    # 🔥 DAY 15 — AUTO MEMORY SUMMARIZATION
+    if len(get_memory()) >= 6:
+        summary = summarize(get_memory())
+        if summary:
+            remember_fact(
+                key="conversation_summary",
+                value=summary,
+                confidence=0.6,
+                source="auto_summary"
+            )
 
     plan = planner(user_input)
 
@@ -130,6 +143,7 @@ def agent(user_input: str) -> str:
         feedback = review["feedback"]
         retries += 1
 
+    # fallback if critic keeps failing
     add_to_memory("assistant", execution)
     return execution
 

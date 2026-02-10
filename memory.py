@@ -2,43 +2,8 @@ import json
 import os
 
 MEMORY_FILE = "memory.json"
-MAX_MEMORY = 6
-
-# Load memory at startup
-def load_memory():
-    if not os.path.exists(MEMORY_FILE):
-        return []
-
-    try:
-        with open(MEMORY_FILE, "r") as f:
-            data = json.load(f)
-    except Exception:
-        return []
-
-    if not isinstance(data, list):
-        return []
-
-    clean = []
-    for item in data:
-        if (
-            isinstance(item, dict)
-            and "role" in item
-            and "content" in item
-            and isinstance(item["content"], str)
-        ):
-            clean.append(item)
-
-    return clean[:MAX_MEMORY]
-
-
-# Global in-memory state
-conversation_memory = load_memory()
-
-
-def save_memory():
-    with open(MEMORY_FILE, "w") as f:
-        json.dump(conversation_memory, f, indent=2)
-
+MAX_SHORT_MEMORY = 6
+conversation_memory = []
 
 def add_to_memory(role, content):
     conversation_memory.append({
@@ -46,11 +11,22 @@ def add_to_memory(role, content):
         "content": content
     })
 
-    if len(conversation_memory) > MAX_MEMORY:
-        conversation_memory.pop(0)
-
-    save_memory()
-
-
+    if len(conversation_memory) >MAX_SHORT_MEMORY:
+        conversation_memory(0)
+    
 def get_memory():
     return conversation_memory
+
+def load_memory():
+    if not os.path.exists(MEMORY_FILE):
+        return []
+
+    try:
+        with open(MEMORY_FILE,"r") as f:
+            return json.load(f)
+    except:
+        return []
+
+def save_memory(memory):
+    with open(MEMORY_FILE,"w") as f:
+        json.dump(memory, f, indent = 2)
