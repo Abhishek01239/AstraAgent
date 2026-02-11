@@ -3,7 +3,7 @@ import re
 from llm import call_llm
 from memory import add_to_memory, get_memory
 from facts import remember_fact, get_fact
-from summarizer import summarize
+from summarizer import summarize   # you must already have / or create this
 
 # ================= PROMPTS =================
 
@@ -84,16 +84,15 @@ def critic(task: str, answer: str) -> dict:
         feedback = result.split("FEEDBACK:", 1)[1].strip()
         return {"status": "retry", "feedback": feedback}
 
-    # fallback (safety)
+    # fallback safety
     return {"status": "accept", "answer": answer}
-
 
 # ================= AGENT =================
 
 def agent(user_input: str) -> str:
     text = user_input.strip().lower()
 
-    # 🧠 FACT WRITE — SAFE NAME PARSING
+    # 🧠 FACT STORE (SAFE)
     match = re.match(r"^my name is\s+(.+)$", text)
     if match:
         name = match.group(1).strip().title()
@@ -105,32 +104,31 @@ def agent(user_input: str) -> str:
         )
         return f"Got it 👍 I’ll remember your name is {name}."
 
-    # 🧠 FACT READ
+    # 🧠 FACT QUERY
     if "what is my name" in text:
         name = get_fact("user_name")
-        if name:
-            return f"Your name is {name}."
-        return "I don’t know your name yet. You can tell me 😊"
+        return f"Your name is {name}." if name else "I don’t know your name yet 😊"
 
-    # 🧠 NORMAL PIPELINE
+    # 🧠 NORMAL MEMORY FLOW
     add_to_memory("user", user_input)
 
-    # 🔥 DAY 15 — AUTO MEMORY SUMMARIZATION
+    # 🔴 SUMMARY LOGIC — THIS IS WHERE IT GOES
     if len(get_memory()) >= 6:
         summary = summarize(get_memory())
-        if summary:
-            remember_fact(
-                key="conversation_summary",
-                value=summary,
-                confidence=0.6,
-                source="auto_summary"
-            )
+        remember_fact(
+            key="conversation_summary",
+            value=summary,
+            confidence=0.6,
+            source="auto_summary"
+        )
 
+    # 1️⃣ PLAN
     plan = planner(user_input)
 
     retries = 0
     feedback = None
 
+    # 2️⃣ EXECUTE → CRITIC LOOP
     while retries < 2:
         execution = executor(plan, feedback)
         review = critic(user_input, execution)
@@ -143,7 +141,7 @@ def agent(user_input: str) -> str:
         feedback = review["feedback"]
         retries += 1
 
-    # fallback if critic keeps failing
+    # fallback
     add_to_memory("assistant", execution)
     return execution
 
