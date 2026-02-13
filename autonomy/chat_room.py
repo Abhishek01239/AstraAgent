@@ -1,16 +1,28 @@
+from memory_store import load_discussion, save_discussion
+
+
 class ChatRoom:
     def __init__(self):
-        self.messages = []
+        self.chat_log = load_discussion()
 
-    def add(self, sender, text):
-        self.messages.append({
-            "sender": sender,
-            "text": text
-        })
+    def add(self, agent_name, message):
+        entry = {
+            "agent": agent_name,
+            "message": message
+        }
 
-    def get_history(self):
-        return self.messages
+        self.chat_log.append(entry)
+        save_discussion(self.chat_log)
+
+    def history_text(self):
+        if not self.chat_log:
+            return "No previous discussion."
+
+        return "\n".join(
+            f"{e['agent']}: {e['message']}"
+            for e in self.chat_log[-20:]
+        )
 
     def show(self):
-        for msg in self.messages:
-            print(f"{msg['sender']}: {msg['text']}")
+        for e in self.chat_log:
+            print(f"{e['agent']}: {e['message']}")

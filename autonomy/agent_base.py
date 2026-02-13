@@ -5,35 +5,37 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from llm import call_llm
 
+
 class Agent:
     def __init__(self, name, system_prompt):
         self.name = name
         self.system_prompt = system_prompt
 
-    def speak(self, chat_history, topic):
+    def speak(self, topic, history=""):
         """
-        Agent reads full chat and produces next message.
+        Generate a message based on:
+        - discussion topic
+        - previous chat history
         """
-
-        history_text = "\n".join(
-            [f"{msg['sender']}: {msg['text']}" for msg in chat_history]
-        )
 
         messages = [
-            {"role": "system", "content": self.system_prompt},
+            {
+                "role": "system",
+                "content": self.system_prompt
+            },
             {
                 "role": "user",
                 "content": f"""
-Topic: {topic}
+Discussion Topic:
+{topic}
 
 Conversation so far:
-{history_text}
+{history}
 
-Respond with ONE short message continuing the discussion.
-Do not repeat previous messages.
+Respond with ONE short message to continue discussion.
 """
             }
         ]
 
-        reply = call_llm(messages)
-        return reply.strip()
+        response = call_llm(messages)
+        return response.strip()

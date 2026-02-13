@@ -1,13 +1,17 @@
 import random
 
+def choose_next_agent(agents, turn):
+    """
+    Decide which agent speaks next.
 
-class Coordinator:
-    def __init__(self, agents, max_turns=8):
-        self.agents = agents
-        self.max_turns = max_turns
+    Strategy:
+    - simple round robin rotation
+    - fallback to random if needed
+    """
 
-    def choose_agent(self):
-        return random.choice(self.agents)
+    if not agents:
+        return None
 
-    def should_stop(self, turn_count):
-        return turn_count >= self.max_turns
+    # round robin
+    index = turn % len(agents)
+    return agents[index]
