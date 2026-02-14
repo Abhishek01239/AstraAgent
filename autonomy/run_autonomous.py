@@ -1,54 +1,50 @@
 from agent_base import Agent
 from chat_room import ChatRoom
 from coordinator import choose_next_agent
+from goal_manager import is_goal_complete, get_next_objective
 
-MAX_TURNS = 10
+MAX_TURNS = 15
 
-# ===== AGENT PERSONALITIES =====
-
-THINKER_PROMPT = """
-You are a creative thinker.
-Propose ideas and move the discussion forward.
-Be concise.
-"""
-
-RESEARCHER_PROMPT = """
-You are a researcher.
-Ask questions, explore reasons, provide context.
-Be analytical.
-"""
-
-CRITIC_PROMPT = """
-You are a critic.
-Challenge weak logic and point out problems.
-Be constructive and brief.
-"""
+THINKER_PROMPT = "You generate ideas to solve the objective."
+RESEARCHER_PROMPT = "You analyze and provide useful information."
+CRITIC_PROMPT = "You find weaknesses and improve solutions."
 
 if __name__ == "__main__":
-    print("\n=== Autonomous AI Discussion ===\n")
+    print("\n=== Goal-Driven Autonomous AI ===\n")
 
-    topic = input("Enter discussion topic: ")
+    goal = input("Enter goal for agents: ")
 
     room = ChatRoom()
 
-    # create agents with personalities
     thinker = Agent("Thinker", THINKER_PROMPT)
     researcher = Agent("Researcher", RESEARCHER_PROMPT)
     critic = Agent("Critic", CRITIC_PROMPT)
 
     agents = [thinker, researcher, critic]
 
-    room.add("SYSTEM", f"Topic: {topic}")
+    room.add("SYSTEM", f"Goal: {goal}")
 
     for turn in range(MAX_TURNS):
+
+        history = room.history_text()
+
+        # check goal completion
+        if is_goal_complete(goal, history):
+            print("\n✅ Goal achieved. Stopping discussion.")
+            break
+
+        # decide next objective
+        objective = get_next_objective(goal, history)
+        room.add("SYSTEM", f"Current Objective: {objective}")
+
         agent = choose_next_agent(agents, turn)
 
         message = agent.speak(
-            topic=topic,
-            history=room.history_text()
+            topic=objective,
+            history=history
         )
 
         room.add(agent.name, message)
         print(f"{agent.name}: {message}")
 
-    print("\nDiscussion saved. Agents will remember next time.")
+    print("\nSession complete.")
