@@ -7,19 +7,23 @@ from llm import call_llm
 
 def is_goal_complete(goal, history):
     """
-    Ask LLM if goal is achieved.
-    Return True or False.
+    Goal is complete ONLY if:
+    - task solved
+    - AND output produced (file created if required)
     """
 
     messages = [
         {
             "role": "system",
             "content": """
-You decide whether a discussion goal is complete.
+Decide if goal is complete.
 
-Respond ONLY:
-YES → if goal achieved
-NO → if more work needed
+ONLY say YES if:
+- the task is solved
+- AND final output is produced
+- AND if goal asks to save or create something, a file must be created
+
+Otherwise say NO.
 """
         },
         {
@@ -36,6 +40,7 @@ Discussion:
 
     result = call_llm(messages).strip().upper()
     return "YES" in result
+
 
 def get_next_objective(goal, history):
     """

@@ -2,6 +2,7 @@ from agent_base import Agent
 from chat_room import ChatRoom
 from coordinator import choose_next_agent
 from goal_manager import is_goal_complete, get_next_objective
+import os
 
 MAX_TURNS = 15
 
@@ -48,3 +49,11 @@ if __name__ == "__main__":
         print(f"{agent.name}: {message}")
 
     print("\nSession complete.")
+
+os.makedirs("output", exist_ok=True)
+
+# assume last agent message = final output
+with open("output/blog.txt", "w", encoding="utf-8") as f:
+    f.write(message)
+
+print("✅ Saved to output/blog.txt")

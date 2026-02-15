@@ -1,5 +1,6 @@
 import sys
 import os
+from tool_executor import execute_tool
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -13,15 +14,36 @@ class Agent:
 
     def speak(self, topic, history=""):
         """
-        Generate a message based on:
-        - discussion topic
-        - previous chat history
+        Agent can either:
+        - respond normally
+        - call a tool using JSON
         """
 
         messages = [
             {
                 "role": "system",
-                "content": self.system_prompt
+                "content": self.system_prompt + """
+You may use tools.
+
+If a tool is needed, respond ONLY with JSON:
+
+{
+ "tool": "write_file",
+ "args": {"filename": "name.txt", "content": "text"}
+}
+
+Otherwise respond normally.
+"""
+        },
+        {
+            "role": "user",
+            "content": f"""
+Objective:
+{topic}
+
+Conversation:
+{history}
+"""
             },
             {
                 "role": "user",
@@ -37,5 +59,9 @@ Respond with ONE short message to continue discussion.
             }
         ]
 
-        response = call_llm(messages)
-        return response.strip()
+        response = call_llm(messages).strip()
+
+        if response.startswith("{") and "tool" in response:
+            return execute_tool(response)
+        
+        return response
